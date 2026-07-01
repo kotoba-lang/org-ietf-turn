@@ -75,4 +75,4 @@
         (when (re-matches #"\d+" expiry-str)
           (let [expires-at #?(:clj (Long/parseLong expiry-str) :cljs (js/parseInt expiry-str 10))]
             (and (>= expires-at now)
-                 (= credential (hmac-sha1-base64 shared-secret username)))))))))
+                 (b/constant-time-eq credential (hmac-sha1-base64 shared-secret username)))))))))

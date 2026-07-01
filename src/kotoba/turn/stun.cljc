@@ -221,7 +221,7 @@
                                          (into (subvec msg 4 20) (subvec body 0 p)))
                     expected (cred/hmac-sha1-bytes key header+prefix)
                     presented (subvec body (+ p 4) (+ p 24))]
-                (= expected presented)))))))))
+                (b/constant-time-eq expected presented)))))))))
 
 ;; ---------------------------------------------------------------------------
 ;; FINGERPRINT (RFC 8489 §14.7) — must be the last attribute.

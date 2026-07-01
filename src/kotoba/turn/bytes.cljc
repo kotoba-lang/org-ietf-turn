@@ -137,3 +137,21 @@
                        true (conj! (u8 (bit-shift-right triple 16)))
                        v2   (conj! (u8 (bit-shift-right triple 8)))
                        v3   (conj! (u8 triple)))))))))))
+
+(defn constant-time-eq
+  "Constant-time equality for two byte vectors (or two strings). Always scans
+   the full length of the longer input and folds every mismatch into a single
+   accumulator, instead of short-circuiting on the first differing element —
+   this avoids leaking a length/content-dependent timing signal, which is the
+   whole point when comparing a caller-presented MESSAGE-INTEGRITY digest or
+   TURN credential against the locally-computed value (a plain `=` here would
+   be a timing side-channel on secret-derived data)."
+  [a b]
+  (let [a (if (string? a) (utf8-encode a) a)
+        b (if (string? b) (utf8-encode b) b)
+        n (max (count a) (count b))]
+    (loop [i 0 diff (bit-xor (count a) (count b))]
+      (if (>= i n)
+        (zero? diff)
+        (recur (inc i)
+               (bit-or diff (bit-xor (int (get a i 0)) (int (get b i 0)))))))))
