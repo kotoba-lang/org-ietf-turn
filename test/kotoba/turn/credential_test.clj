@@ -57,3 +57,39 @@
     (is (= username (str now ":erin")))
     (is (true? (cred/verify-credential "s" username credential now)))
     (is (false? (cred/verify-credential "s" username credential (inc now))))))
+
+;; --- room/player-scoped variant ---------------------------------------------
+;; Mirrors kami-engine-sdk's src/lib/call/turn.test.ts assertions exactly, so
+;; a future TS->cljc delegation of that file can be checked against this same
+;; ground truth (ADR: net-babiniku-vrm-vtuber-design.md amendment, kami-engine-sdk
+;; Svelte retirement plan).
+
+(deftest scoped-mints-expiry-prefixed-scoped-username
+  (let [now 1700000000
+        {:keys [username expires-at]} (cred/mint-credential-scoped "s3cret" "room-1" 7 600 now)]
+    (is (= username "1700000600:room-1:7"))
+    (is (= expires-at 1700000600))))
+
+(deftest scoped-round-trips-mint-verify-and-recovers-room-player
+  (let [now 1700000000
+        {:keys [username credential]} (cred/mint-credential-scoped "s" "r" 3 600 now)]
+    (is (= {:ok true :room "r" :player 3} (cred/verify-credential-scoped "s" username credential now)))))
+
+(deftest scoped-rejects-expired-credential
+  (let [issued 1700000000
+        {:keys [username credential]} (cred/mint-credential-scoped "s" "r" 1 60 issued)]
+    (is (= {:ok false :reason :expired}
+           ;; 61s past the 60s TTL (both `now`/`issued` are unix seconds here,
+           ;; matching this ns's existing convention -- not the JS SDK's
+           ;; millisecond Date.now()-based `now`).
+           (cred/verify-credential-scoped "s" username credential (+ issued 61))))))
+
+(deftest scoped-rejects-tampered-credential-and-wrong-secret
+  (let [now 1700000000
+        {:keys [username credential]} (cred/mint-credential-scoped "s" "r" 1 600 now)]
+    (is (= :bad-signature (:reason (cred/verify-credential-scoped "s" username (str credential "x") now))))
+    (is (= :bad-signature (:reason (cred/verify-credential-scoped "WRONG" username credential now))))))
+
+(deftest scoped-rejects-malformed-username
+  (is (= {:ok false :reason :malformed}
+         (cred/verify-credential-scoped "s" "no-colons" "x" 0))))
