@@ -76,3 +76,48 @@
           (let [expires-at #?(:clj (Long/parseLong expiry-str) :cljs (js/parseInt expiry-str 10))]
             (and (>= expires-at now)
                  (b/constant-time-eq credential (hmac-sha1-base64 shared-secret username)))))))))
+
+;; --- room/player-scoped variant --------------------------------------------
+;; The kotoba real-time signaling relay (kami-engine-sdk's WebRTC call layer,
+;; `docs/ADR-kotoba-turn-relay.md`) scopes a credential's `user` segment to
+;; `"<room>:<player>"` rather than a single opaque string, and its verify path
+;; needs to report WHY a credential was rejected (malformed / bad-expiry /
+;; expired / bad-signature) and hand back the parsed room/player on success —
+;; a richer contract than the generic `mint-credential`/`verify-credential`
+;; above. Built on the exact same `hmac-sha1-base64`/`constant-time-eq`
+;; primitives; no new crypto, just a different username encoding + a result
+;; shape mirroring the JS SDK's `TurnCredential`/`VerifyTurnResult`.
+
+(defn mint-credential-scoped
+  "Mint a room/player-scoped ephemeral TURN credential. Returns
+   {:username :credential :expires-at}. `shared-secret` must never reach a
+   client — this runs server-side only."
+  [shared-secret room player ttl-seconds now]
+  (let [expires-at (+ now ttl-seconds)
+        username (str expires-at ":" room ":" player)]
+    {:username username
+     :credential (hmac-sha1-base64 shared-secret username)
+     :expires-at expires-at}))
+
+(defn verify-credential-scoped
+  "Verify a room/player-scoped (username, credential) pair under
+   `shared-secret` at time `now` (unix seconds). Returns
+   {:ok true :room :player} on success, or {:ok false :reason} where reason
+   is one of :malformed :bad-expiry :expired :bad-signature."
+  [shared-secret username credential now]
+  (let [parts (str/split username #":")]
+    (if (not= 3 (count parts))
+      {:ok false :reason :malformed}
+      (let [[expiry-str room player-str] parts]
+        (if-not (re-matches #"\d+" expiry-str)
+          {:ok false :reason :bad-expiry}
+          (let [expires-at #?(:clj (Long/parseLong expiry-str) :cljs (js/parseInt expiry-str 10))]
+            (cond
+              (< expires-at now)
+              {:ok false :reason :expired}
+
+              (not (b/constant-time-eq credential (hmac-sha1-base64 shared-secret username)))
+              {:ok false :reason :bad-signature}
+
+              :else
+              {:ok true :room room :player #?(:clj (Long/parseLong player-str) :cljs (js/parseInt player-str 10))})))))))
