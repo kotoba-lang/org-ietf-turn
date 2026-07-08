@@ -59,11 +59,11 @@
                             (bit-shift-left (- c1 0xD800) 10)
                             (- c2 0xDC00))]
                   (recur (+ i 2)
-                         (conj! out
-                                (u8 (bit-or 0xF0 (bit-shift-right cp 18)))
-                                (u8 (bit-or 0x80 (bit-and (bit-shift-right cp 12) 0x3F)))
-                                (u8 (bit-or 0x80 (bit-and (bit-shift-right cp 6) 0x3F)))
-                                (u8 (bit-or 0x80 (bit-and cp 0x3F))))))
+                         (reduce conj! out
+                                 [(u8 (bit-or 0xF0 (bit-shift-right cp 18)))
+                                  (u8 (bit-or 0x80 (bit-and (bit-shift-right cp 12) 0x3F)))
+                                  (u8 (bit-or 0x80 (bit-and (bit-shift-right cp 6) 0x3F)))
+                                  (u8 (bit-or 0x80 (bit-and cp 0x3F)))])))
                 (recur (inc i) out))) ; lone high surrogate: skip (malformed input)
 
             (< c1 0x80)
@@ -71,16 +71,16 @@
 
             (< c1 0x800)
             (recur (inc i)
-                   (conj! out
-                          (u8 (bit-or 0xC0 (bit-shift-right c1 6)))
-                          (u8 (bit-or 0x80 (bit-and c1 0x3F)))))
+                   (reduce conj! out
+                           [(u8 (bit-or 0xC0 (bit-shift-right c1 6)))
+                            (u8 (bit-or 0x80 (bit-and c1 0x3F)))]))
 
             :else
             (recur (inc i)
-                   (conj! out
-                          (u8 (bit-or 0xE0 (bit-shift-right c1 12)))
-                          (u8 (bit-or 0x80 (bit-and (bit-shift-right c1 6) 0x3F)))
-                          (u8 (bit-or 0x80 (bit-and c1 0x3F)))))))))))
+                   (reduce conj! out
+                           [(u8 (bit-or 0xE0 (bit-shift-right c1 12)))
+                            (u8 (bit-or 0x80 (bit-and (bit-shift-right c1 6) 0x3F)))
+                            (u8 (bit-or 0x80 (bit-and c1 0x3F)))]))))))))
 
 (def ^:private b64-alphabet
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
