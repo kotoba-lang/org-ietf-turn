@@ -2,3 +2,4 @@
 .nrepl-port
 *.jar
 target/
+.clj-kondo/.cache/
