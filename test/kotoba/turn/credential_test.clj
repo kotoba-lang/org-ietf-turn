@@ -1,8 +1,8 @@
 (ns kotoba.turn.credential-test
   (:require [clojure.test :refer [deftest is testing]]
-            [kotoba.turn.bytes :as b]
-            [kotoba.turn.credential :as cred]
-            [kotoba.turn.sha1 :as sha1]))
+            [kotoba.bytes :as b]
+            [kotoba.bytes.sha1 :as sha1]
+            [kotoba.turn.credential :as cred]))
 
 (deftest platform-hmac-matches-pure-impl
   (testing "the :clj (javax.crypto.Mac) branch and the pure kotoba.turn.sha1

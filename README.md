@@ -26,10 +26,11 @@ be added later but is never the semantic authority.
 ```
 
 ```clojure
-(require '[kotoba.turn.stun :as stun])
+(require '[kotoba.turn.stun :as stun]
+         '[kotoba.bytes :as bytes])
 
 (def msg (-> (stun/encode-header {:typ stun/binding-request :length 0 :txid (vec (repeat 12 0))})
-             (stun/push-attr stun/attr-software (kotoba.turn.bytes/utf8-encode "kotoba"))
+             (stun/push-attr stun/attr-software (bytes/utf8-encode "kotoba"))
              stun/set-attr-length
              (stun/append-message-integrity key-bytes)
              stun/append-fingerprint))
@@ -40,22 +41,24 @@ be added later but is never the semantic authority.
 
 ## Design
 
-- **`kotoba.turn.bytes`** — portable byte-vector primitives (u16/u32 BE
-  codecs, UTF-8 encode, base64 encode/decode). Every "bytes" value in this
-  library is a plain `vector<int 0..255>`, never a platform byte-array, so the
-  exact same code runs on the JVM and in ClojureScript with nothing to
-  reader-conditional.
-- **`kotoba.turn.sha1`** — pure SHA-1 (FIPS 180-4) + HMAC-SHA1 (RFC 2104), no
-  platform crypto API. This is what the ClojureScript branch of
-  `kotoba.turn.credential` calls directly.
+- **Byte-vector and SHA-1/HMAC-SHA1 primitives now live in
+  [`kotoba-lang/bytes`](https://github.com/kotoba-lang/bytes)**
+  (`kotoba.bytes` / `kotoba.bytes.sha1`), not in this repo. They were
+  extracted out of `kotoba.turn.bytes` / `kotoba.turn.sha1` (Phase 1 of a
+  shared-lib consolidation across kotoba-lang protocol libraries) because
+  neither was actually TURN/STUN-specific — both are generic
+  `vector<int 0..255>` byte-vector primitives and a pure, portable SHA-1 +
+  HMAC-SHA1 implementation (no platform crypto API, identical code on the JVM
+  and in ClojureScript). This repo depends on `kotoba-lang/bytes` via a
+  `:local/root` sibling checkout (see `deps.edn`).
 - **`kotoba.turn.credential`** — ephemeral TURN credential mint/verify, the
   coturn `use-auth-secret` scheme:
   `username = "<expiry-unix-ts>:<user>"`,
   `credential = base64(HMAC-SHA1(shared-secret, username))`. The HMAC
   primitive is reader-conditional (`:clj` → `javax.crypto.Mac`, `:cljs` → the
-  pure `kotoba.turn.sha1` impl); `credential_test.clj` cross-checks both
-  branches against the *same* RFC 2202 vectors and against each other
-  directly to pin them to byte-identical output.
+  pure `kotoba.bytes.sha1` impl from `kotoba-lang/bytes`); `credential_test.clj`
+  cross-checks both branches against the *same* RFC 2202 vector and against
+  each other directly to pin them to byte-identical output.
 - **`kotoba.turn.stun`** — RFC 8489 20-byte header + attribute TLV iteration
   (4-byte padding), XOR-MAPPED-ADDRESS (IPv4), MESSAGE-INTEGRITY
   (HMAC-SHA1 over the message up to but not including the attribute, with the
@@ -72,13 +75,15 @@ framing (§12.4), and the actual UDP/TCP/TLS listener I/O — see
 
 ## Correctness
 
-`clojure -M:test` (cognitect test-runner): SHA-1 (FIPS 180-1 vectors, incl. a
-1,000,000-byte message) + HMAC-SHA1 (RFC 2202 §3 cases 1/2/3/4/6/7) + STUN
-header round-trip + attribute TLV parse/padding/overrun + XOR-MAPPED-ADDRESS
-(RFC 5769 §2.2) + MESSAGE-INTEGRITY round-trip/tamper-detect (survives a
-trailing FINGERPRINT) + FINGERPRINT round-trip/corruption-detect (CRC-32/IEEE
-check value `0xCBF43926`) + credential mint/verify round-trip, tamper/wrong-
-secret/malformed-username rejection, and expiry-boundary (`>=` inclusive).
+`clojure -M:test` (cognitect test-runner): STUN header round-trip + attribute
+TLV parse/padding/overrun + XOR-MAPPED-ADDRESS (RFC 5769 §2.2) +
+MESSAGE-INTEGRITY round-trip/tamper-detect (survives a trailing FINGERPRINT) +
+FINGERPRINT round-trip/corruption-detect (CRC-32/IEEE check value
+`0xCBF43926`) + credential mint/verify round-trip, tamper/wrong-secret/
+malformed-username rejection, expiry-boundary (`>=` inclusive), and the
+`:clj`/`:cljs` HMAC-SHA1 branches cross-checked against each other and against
+an RFC 2202 §3 vector. (SHA-1/HMAC-SHA1's own FIPS 180-1 + RFC 2202 vector
+suite now lives in `kotoba-lang/bytes`.)
 
 ## License
 

@@ -1,6 +1,6 @@
 (ns kotoba.turn.stun-test
   (:require [clojure.test :refer [deftest is testing]]
-            [kotoba.turn.bytes :as b]
+            [kotoba.bytes :as b]
             [kotoba.turn.stun :as stun]))
 
 (deftest header-round-trips-and-rejects-bad-magic

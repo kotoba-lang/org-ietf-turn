@@ -7,19 +7,21 @@
 ;;
 ;; The HMAC-SHA1 primitive is reader-conditional: the JVM branch does the
 ;; RFC 2104 ipad/opad construction itself (identical shape to
-;; `kotoba.turn.sha1/hmac-sha1`) but delegates the actual digest to the
+;; `kotoba.bytes.sha1/hmac-sha1`) but delegates the actual digest to the
 ;; platform's `java.security.MessageDigest` SHA-1 (audited, JIT-compiled —
 ;; and, unlike `javax.crypto.Mac`/`SecretKeySpec`, it has no objection to an
 ;; empty key, which HMAC itself allows per RFC 2104 §2); the ClojureScript
-;; branch uses the pure `kotoba.turn.sha1` implementation (no native crypto
-;; dependency, works in-browser or under Node without polyfills).
+;; branch uses the pure `kotoba.bytes.sha1` implementation (no native crypto
+;; dependency, works in-browser or under Node without polyfills). Both
+;; `kotoba.bytes` and `kotoba.bytes.sha1` come from `kotoba-lang/bytes`
+;; (extracted from this repo; see README.md).
 ;; `credential_test.clj` cross-checks both paths against the same RFC 2202
 ;; vectors AND against each other directly (the pure impl is plain portable
 ;; code, so it's callable from JVM tests too) to pin them to identical bytes.
 (ns kotoba.turn.credential
   (:require [clojure.string :as str]
-            [kotoba.turn.bytes :as b]
-            [kotoba.turn.sha1 :as sha1])
+            [kotoba.bytes :as b]
+            [kotoba.bytes.sha1 :as sha1])
   #?(:clj (:import (java.security MessageDigest))))
 
 #?(:clj
@@ -30,7 +32,7 @@
 
 (defn hmac-sha1-bytes
   "HMAC-SHA1 of byte-vector `msg` under byte-vector `key`. Returns a 20-byte
-   vector (kotoba.turn.bytes convention). This is the byte-level primitive —
+   vector (kotoba.bytes convention). This is the byte-level primitive —
    use this (not `hmac-sha1`) for STUN MESSAGE-INTEGRITY, whose key/message
    are arbitrary binary, not necessarily valid UTF-8 text."
   [key msg]
@@ -45,7 +47,7 @@
 
 (defn hmac-sha1
   "HMAC-SHA1 of UTF-8 string `msg` under UTF-8 string `secret`. Returns a
-   20-byte vector (kotoba.turn.bytes convention)."
+   20-byte vector (kotoba.bytes convention)."
   [^String secret ^String msg]
   (hmac-sha1-bytes (b/utf8-encode secret) (b/utf8-encode msg)))
 

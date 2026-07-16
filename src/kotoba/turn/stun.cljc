@@ -2,13 +2,13 @@
 ;; attributes the relay needs: the 20-byte header, attribute TLV iteration
 ;; (with 4-byte padding), XOR-MAPPED-ADDRESS (IPv4), MESSAGE-INTEGRITY
 ;; (HMAC-SHA1) and FINGERPRINT (CRC-32). Pure/portable — every "message" here
-;; is a `kotoba.turn.bytes` byte-vector (vector<int 0..255>), never a
+;; is a `kotoba.bytes` byte-vector (vector<int 0..255>), never a
 ;; platform byte-array, so the same code runs on the JVM and in cljs.
 ;;
 ;; Out of scope (this repo, this module): the allocation state machine and the
 ;; UDP/TCP/TLS listener I/O — see docs/ADR-kotoba-turn-relay.md.
 (ns kotoba.turn.stun
-  (:require [kotoba.turn.bytes :as b]
+  (:require [kotoba.bytes :as b]
             [kotoba.turn.credential :as cred]))
 
 ;; RFC 8489 magic cookie — bytes 4..8 of every STUN message.
