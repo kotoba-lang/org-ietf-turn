@@ -2,8 +2,14 @@
  :tasks
  {test
   {:task (do (require 'clojure.test
+                       'kotoba.turn.allocation-test
+                       'kotoba.turn.channeldata-test
                        'kotoba.turn.credential-test
+                       'kotoba.turn.demux-test
                        'kotoba.turn.stun-test)
-             (let [r (clojure.test/run-tests 'kotoba.turn.credential-test
+             (let [r (clojure.test/run-tests 'kotoba.turn.allocation-test
+                                              'kotoba.turn.channeldata-test
+                                              'kotoba.turn.credential-test
+                                              'kotoba.turn.demux-test
                                               'kotoba.turn.stun-test)]
                (when (pos? (+ (:fail r) (:error r))) (System/exit 1))))}}}

@@ -1,14 +1,16 @@
-# kotoba-turn
+# org-ietf-turn
 
-[![CI](https://github.com/kotoba-lang/kotoba-turn/actions/workflows/ci.yml/badge.svg)](https://github.com/kotoba-lang/kotoba-turn/actions/workflows/ci.yml)
+[![CI](https://github.com/kotoba-lang/org-ietf-turn/actions/workflows/ci.yml/badge.svg)](https://github.com/kotoba-lang/org-ietf-turn/actions/workflows/ci.yml)
 
 **TURN relay (RFC 8656) protocol core — pure Clojure/EDN (`.cljc`, JVM +
 ClojureScript).** Closes the STUN-only NAT-traversal gap for 1:1 real-media
-WebRTC calls behind symmetric NAT. This repo is the **message-layer +
-credential-layer contract**: STUN (RFC 8489) parse/encode, ephemeral-credential
-mint/verify, MESSAGE-INTEGRITY / FINGERPRINT. It intentionally does **not**
-include a UDP/TCP socket listener or the allocation/permission/channel state
-machine yet — see `docs/ADR-kotoba-turn-relay.md`.
+WebRTC calls behind symmetric NAT. This repo is the **message layer +
+credential layer + relay state model**: STUN (RFC 8489) parse/encode,
+ephemeral-credential mint/verify, MESSAGE-INTEGRITY / FINGERPRINT, the
+allocation/permission/channel-binding state machine (RFC 8656 §5-§11),
+ChannelData framing (§12.4), and STUN/ChannelData datagram classification.
+It intentionally does **not** include a UDP/TCP socket listener — see
+`docs/ADR-kotoba-turn-relay.md`.
 
 This supersedes the Rust `kotoba-turn` crate (`kotoba-lang/kotoba`, removed in
 PR #259, 2026-07-01 — see `kotoba-lang/kotoba/docs/rust-crate-migration.md`):
@@ -39,6 +41,24 @@ be added later but is never the semantic authority.
 (stun/verify-fingerprint msg)                 ;=> true
 ```
 
+```clojure
+(require '[kotoba.turn.allocation :as alloc]
+         '[kotoba.turn.channeldata :as cd]
+         '[kotoba.turn.demux :as demux])
+
+;; Everything below is `now`-injected (a caller-supplied ms timestamp) —
+;; nothing in these three namespaces reads a clock or touches a socket.
+(def a (alloc/allocate now five-tuple relayed-address))
+(alloc/expired? a now)                              ;=> false
+(def a (alloc/create-permission a peer-address now)) ;; RFC 8656 §9, own 300s expiry
+(alloc/permission-active? a peer-address now)        ;=> true
+(def a (alloc/channel-bind a 0x4001 peer-address now)) ;; nil if channel-num out of range
+(alloc/peer-for-channel a 0x4001 now)                ;=> peer-address
+
+(cd/decode (cd/encode 0x4001 payload-bytes))         ;=> {:channel-number 0x4001 :data payload-bytes}
+(demux/classify-datagram raw-datagram)               ;=> :stun | :channel-data | :unknown
+```
+
 ## Design
 
 - **Byte-vector and SHA-1/HMAC-SHA1 primitives now live in
@@ -64,26 +84,64 @@ be added later but is never the semantic authority.
   (HMAC-SHA1 over the message up to but not including the attribute, with the
   header length field patched first), FINGERPRINT (CRC-32, self-implemented,
   XORed with `0x5354554E`).
+- **`kotoba.turn.allocation`** — the RFC 8656 §5-§11 allocation / permission /
+  channel-binding **state model**: a plain EDN map per allocation
+  (`:turn/five-tuple` `:turn/relayed-address` `:turn/expiry`
+  `:turn/permissions` `:turn/channel-bindings`), plus pure functions
+  (`allocate` `expired?` `refresh` `create-permission` `permission-active?`
+  `channel-bind` `refresh-channel-binding` `channel-for-peer`
+  `peer-for-channel`). Every function is deterministic and `now`-injected
+  (a caller-supplied ms timestamp) — same discipline as `kotoba.turn.stun`
+  and the deleted Rust reference implementation's `allocation.rs`. This
+  namespace owns nothing: callers store/index allocations themselves and
+  garbage-collect anything `expired?` reports true for. It does **not**
+  relay any data — there is no socket I/O anywhere in this repo.
+- **`kotoba.turn.channeldata`** — RFC 8656 §12.4 ChannelData framing
+  (`encode`/`decode`): the lightweight binary format TURN uses once a
+  channel is bound, distinct from a full STUN message. 4-byte header
+  (channel number + length, big-endian) + payload, padded to a 4-byte
+  boundary the same way `kotoba.turn.stun/push-attr` pads STUN attribute
+  values. `decode` returns `nil` (never throws) on malformed/too-short
+  input.
+- **`kotoba.turn.demux`** — RFC 8656 §12.4's datagram classification
+  (`classify-datagram`): a listener multiplexes STUN and ChannelData on one
+  port and must tell which is which before parsing either. Implements the
+  real bit-level check (RFC 8489 §5: STUN's leading 2 bits are always `00`;
+  a valid channel number's leading 2 bits are `01`), not a length guess or
+  try/parse/fallback — see the namespace docstring for the exact reasoning.
 
 ## Scope
 
 In scope: STUN message codec, ephemeral-credential mint/verify,
-MESSAGE-INTEGRITY / FINGERPRINT. **Out of scope (follow-up):** the
-5-tuple allocation / permission / channel-binding state machine, ChannelData
-framing (§12.4), and the actual UDP/TCP/TLS listener I/O — see
-`docs/ADR-kotoba-turn-relay.md` for what's deliberately deferred and why.
+MESSAGE-INTEGRITY / FINGERPRINT, the allocation/permission/channel-binding
+state machine (RFC 8656 §5-§11), ChannelData framing (§12.4), and
+STUN/ChannelData datagram classification. **Out of scope (still deferred,
+per `docs/ADR-kotoba-turn-relay.md`):** the actual UDP/TCP/TLS socket
+listener I/O that would drive this state machine with real packets, the
+long-term-credential mechanism (RFC 8489 §9.2), IPv6 XOR-addresses, and the
+`REQUESTED-TRANSPORT`/`DONT-FRAGMENT`/`EVEN-PORT`/`RESERVATION-TOKEN`
+request-validation logic around allocation creation. **This repo is still
+not a runnable TURN relay server** — it is the pure protocol + state
+contract a future listener phase must implement against.
 
 ## Correctness
 
-`clojure -M:test` (cognitect test-runner): STUN header round-trip + attribute
-TLV parse/padding/overrun + XOR-MAPPED-ADDRESS (RFC 5769 §2.2) +
-MESSAGE-INTEGRITY round-trip/tamper-detect (survives a trailing FINGERPRINT) +
-FINGERPRINT round-trip/corruption-detect (CRC-32/IEEE check value
-`0xCBF43926`) + credential mint/verify round-trip, tamper/wrong-secret/
-malformed-username rejection, expiry-boundary (`>=` inclusive), and the
-`:clj`/`:cljs` HMAC-SHA1 branches cross-checked against each other and against
-an RFC 2202 §3 vector. (SHA-1/HMAC-SHA1's own FIPS 180-1 + RFC 2202 vector
-suite now lives in `kotoba-lang/bytes`.)
+`clojure -M:test` (cognitect test-runner), 41 tests / 94 assertions: STUN
+header round-trip + attribute TLV parse/padding/overrun + XOR-MAPPED-ADDRESS
+(RFC 5769 §2.2) + MESSAGE-INTEGRITY round-trip/tamper-detect (survives a
+trailing FINGERPRINT) + FINGERPRINT round-trip/corruption-detect (CRC-32/IEEE
+check value `0xCBF43926`) + credential mint/verify round-trip, tamper/
+wrong-secret/malformed-username rejection, expiry-boundary (`>=` inclusive),
+and the `:clj`/`:cljs` HMAC-SHA1 branches cross-checked against each other
+and against an RFC 2202 §3 vector (SHA-1/HMAC-SHA1's own FIPS 180-1 + RFC
+2202 vector suite lives in `kotoba-lang/bytes`); allocation lifetime/expiry/
+refresh (including refresh-with-lifetime-0 deleting via `nil`), permission
+independent-expiry, channel-bind range validation and both-direction
+expiry-aware lookup; ChannelData encode/decode round-trip (including a
+non-4-aligned payload and a zero-length payload) and malformed/truncated/
+invalid-channel-number rejection; datagram classification of a real
+`kotoba.turn.stun`-encoded message, a real `kotoba.turn.channeldata`-encoded
+message, and garbage/short/wrong-leading-bits input.
 
 ## License
 
