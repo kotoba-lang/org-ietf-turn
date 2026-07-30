@@ -288,6 +288,32 @@
 ;; parsed STUN header/attrs, and the sender's `rinfo`.
 ;; ---------------------------------------------------------------------------
 
+(defn- handle-binding!
+  "RFC 8489 §3 Binding — answer with XOR-MAPPED-ADDRESS.
+
+  A TURN server has to be a STUN server too, and not as a courtesy: a real
+  WebRTC ICE agent sends a Binding request to the configured server FIRST and
+  only proceeds to Allocate once it answers. Dropping type 0x0001 as
+  \"unhandled\" therefore does not merely skip a nicety — the client concludes
+  the server is unreachable and never asks for a relay candidate at all, so
+  every relay-only call fails with no error on either side.
+
+  Measured 2026-07-30 with headless Chromium against kaigi: the listener logged
+  nothing but `unhandled STUN message type 1` from each of the browser's local
+  interfaces, and `iceTransportPolicy: \"relay\"` never produced a candidate.
+
+  Unauthenticated, like every other response here except Allocate's: RFC 8489
+  §9.1 makes authentication optional for Binding, and an ICE agent sends this
+  before it has any reason to hold credentials."
+  [main-sock header rinfo]
+  (send-stun! main-sock
+              (build-success-response
+               header stun/binding-response
+               [[stun/attr-xor-mapped-address
+                 (stun/encode-xor-mapped-v4 (ip-str->vec (.-address rinfo))
+                                            (.-port rinfo))]])
+              rinfo))
+
 (defn- handle-relay-inbound!
   "Installed as the `\"message\"` handler on ONE allocation's relay-side
    dgram socket at Allocate time (see `handle-allocate!`). Fires when a
@@ -529,14 +555,19 @@
    header + attributes (may throw on a garbage-but-STUN-shaped datagram —
    caught by `handle-datagram!`'s wrapper, below) and dispatches on message
    type. An unrecognized STUN message type is logged and dropped, not an
-   error — a real listener sees traffic (e.g. a stray Binding request) it
-   doesn't have a TURN-specific handler for."
+   error — a real listener sees traffic it doesn't have a handler for.
+
+   Binding (0x0001) IS handled: an earlier version of this comment named it as
+   the example of harmless unhandled traffic, and that was wrong. An ICE agent
+   probes with Binding before it will send Allocate, so dropping it makes the
+   server look unreachable and relay candidates never appear."
   [state main-sock opts raw rinfo]
   (let [header (stun/decode-header raw)
         body (subvec (vec raw) 20)
         attrs (stun/attributes body)
         typ (:typ header)]
     (cond
+      (= typ stun/binding-request) (handle-binding! main-sock header rinfo)
       (= typ stun/allocate-request) (handle-allocate! state main-sock opts header attrs raw rinfo)
       (= typ stun/refresh-request) (handle-refresh! state main-sock header attrs rinfo)
       (= typ stun/create-permission-request) (handle-create-permission! state main-sock header attrs rinfo)
