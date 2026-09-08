@@ -59,7 +59,7 @@
 ;; response AND confirm the attacker gains no side effect.
 (ns kotoba.turn.listener-demo
   (:require ["node:dgram" :as dgram]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [promesa.core :as p]
             [kotoba.bytes :as b]
             [kotoba.turn.stun :as stun]
