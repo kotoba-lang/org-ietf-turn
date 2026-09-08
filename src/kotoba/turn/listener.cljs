@@ -143,7 +143,7 @@
 ;;     UDP (`udp4`) only, matching this repo's existing IPv4-only scope.
 (ns kotoba.turn.listener
   (:require ["node:dgram" :as dgram]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [kotoba.bytes :as b]
             [kotoba.turn.stun :as stun]
             [kotoba.turn.credential :as cred]
