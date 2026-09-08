@@ -19,7 +19,7 @@
 ;; vectors AND against each other directly (the pure impl is plain portable
 ;; code, so it's callable from JVM tests too) to pin them to identical bytes.
 (ns kotoba.turn.credential
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [kotoba.bytes :as b]
             [kotoba.bytes.sha1 :as sha1])
   #?(:clj (:import (java.security MessageDigest))))
