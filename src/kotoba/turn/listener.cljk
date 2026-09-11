@@ -11,7 +11,7 @@
 ;; `.cljs`, NOT `.cljc` — like `kotoba.dtn.transport.tcp` in
 ;; `kotoba-lang/dtn` (the sibling repo this namespace's shape was modeled
 ;; after), real socket I/O only exists on a Node-hosted ClojureScript
-;; runtime (nbb, in this repo's test/demo tooling). `clojure -M:test` cannot
+;; runtime (nbb, in this repo's test/demo tooling). `kbb -M:test` cannot
 ;; load `.cljs` files at all, so this file can never regress the existing
 ;; 41-test/94-assertion pure `.cljc` suite — see this repo's README.
 ;;
