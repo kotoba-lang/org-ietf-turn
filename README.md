@@ -78,7 +78,7 @@ be added later but is never the semantic authority.
 ## The real relay listener
 
 `kotoba.turn.listener` (`.cljs`, Node-only — real socket I/O only exists on
-a Node-hosted ClojureScript runtime, so `clojure -M:test`'s JVM suite never
+a Node-hosted ClojureScript runtime, so `kbb -M:test`'s JVM suite never
 loads it) is what makes this repo an actually-running TURN relay rather
 than a protocol/state library: `start-listener!` binds a real `node:dgram`
 UDP socket and, for each received datagram, classifies it
@@ -111,7 +111,7 @@ only honest way to prove the listener's own parsing/relay logic is real).
 Run from this repo's root:
 
 ```bash
-nbb --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljk
+kbb --backend sci --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljk
 ```
 
 (relative `--classpath` entries mean this must run with cwd at this repo's
@@ -250,7 +250,7 @@ against.
 
 ## Correctness
 
-`clojure -M:test` (cognitect test-runner), 41 tests / 94 assertions
+`kbb -M:test` (cognitect test-runner), 41 tests / 94 assertions
 (unaffected by the listener — it's `.cljs`, which this JVM test runner
 never loads): STUN header round-trip + attribute TLV parse/padding/overrun
 + XOR-MAPPED-ADDRESS (RFC 5769 §2.2) + MESSAGE-INTEGRITY round-trip/
@@ -269,13 +269,13 @@ rejection; datagram classification of a real `kotoba.turn.stun`-encoded
 message, a real `kotoba.turn.channeldata`-encoded message, and
 garbage/short/wrong-leading-bits input.
 
-`clojure -M:lint` (clj-kondo), 0 errors / 0 warnings across `src` and
+`kbb -M:lint` (clj-kondo), 0 errors / 0 warnings across `src` and
 `test` (including the `.cljs` listener/demo — see `.clj-kondo/config.edn`
 for the `promesa.core/let` → `clojure.core/let` `:lint-as` hint this
 requires, the same fix `kotoba-lang/dtn`'s own `.clj-kondo/config.edn`
 applies for its structurally identical `p/let`-based demo).
 
-`nbb --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljk`
+`kbb --backend sci --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljk`
 — see "The real relay listener" above for what its 3 scenarios prove;
 `RESULT: 3/3 scenarios passed`, exit 0.
 
