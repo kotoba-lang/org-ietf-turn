@@ -84,7 +84,7 @@
 ;; bindings without re-presenting credentials. Closing this gap (verifying
 ;; MI on every request type, not just Allocate) is straightforward future
 ;; work — every request already carries a real MESSAGE-INTEGRITY attribute
-;; in the wire format (see `test/kotoba/turn/listener_demo.cljs`, which
+;; in the wire format (see `test/kotoba/turn/listener_demo.cljk`, which
 ;; signs every request including Refresh/CreatePermission/ChannelBind) —
 ;; but is out of scope for this phase to keep the reviewable surface
 ;; matched to what was actually asked for.
@@ -204,7 +204,7 @@
 ;; No encode-channel-number here: this listener only ever DECODES a
 ;; CHANNEL-NUMBER attribute (from an incoming ChannelBind request) — it
 ;; never originates one itself (ChannelBind is a client -> server request;
-;; see test/kotoba/turn/listener_demo.cljs for the client-side encoder,
+;; see test/kotoba/turn/listener_demo.cljk for the client-side encoder,
 ;; which builds one by hand for exactly that reason).
 (defn- decode-channel-number [v]
   (b/bytes->u16 (subvec (vec v) 0 2)))
@@ -648,7 +648,7 @@
    Binding a UDP socket is inherently asynchronous (the OS only assigns
    the actual port once `bind` completes), so this returns a
    `Promise<handle>` rather than a bare handle — callers (see
-   `test/kotoba/turn/listener_demo.cljs`) `p/let`/`.then` it. `handle` is
+   `test/kotoba/turn/listener_demo.cljk`) `p/let`/`.then` it. `handle` is
    `{:state <atom, the state described in this namespace's docstring>
      :socket <the main node:dgram socket, e.g. for callers who want to
               read (.address socket) themselves> :port <the actual bound

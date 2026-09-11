@@ -29,7 +29,7 @@
 ;; real socket I/O, see `kotoba.turn.listener`'s own namespace docstring for
 ;; why that split exists):
 ;;
-;;   nbb --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljs
+;;   nbb --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljk
 ;;
 ;; Scenario 1 proves the full authenticated Allocate -> CreatePermission ->
 ;; Send-indication data path in BOTH directions: client -> peer (hop 1,

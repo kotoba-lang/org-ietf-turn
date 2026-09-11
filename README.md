@@ -99,7 +99,7 @@ design (the "five-tuple simplification" this single-UDP-port listener
 uses, the peer-address shapes chosen for permissions vs. channel bindings,
 and exactly what's covered).
 
-Proven end to end by `test/kotoba/turn/listener_demo.cljs` — not a unit
+Proven end to end by `test/kotoba/turn/listener_demo.cljk` — not a unit
 test, an **executable demo** against real sockets (mirrors the rigor
 `kotoba-lang/dtn`'s `tcp_demo.cljs` established: PASS/FAIL per scenario, a
 final `RESULT: N/3 scenarios passed` line, exit 0 iff all pass). It starts
@@ -111,7 +111,7 @@ only honest way to prove the listener's own parsing/relay logic is real).
 Run from this repo's root:
 
 ```bash
-nbb --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljs
+nbb --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljk
 ```
 
 (relative `--classpath` entries mean this must run with cwd at this repo's
@@ -244,7 +244,7 @@ quotas/DoS limits, the `REQUESTED-TRANSPORT`/`DONT-FRAGMENT`/`EVEN-PORT`/
 exact RFC 8489 §14.8 ERROR-CODE payload fidelity beyond a minimal shape, and
 TCP/TLS on the client-facing side (UDP only). See "The real relay listener"
 above for the full, current list — **this repo is now an actually-running
-TURN relay** (proven end to end by `test/kotoba/turn/listener_demo.cljs`),
+TURN relay** (proven end to end by `test/kotoba/turn/listener_demo.cljk`),
 not merely the protocol + state contract a listener would implement
 against.
 
@@ -275,7 +275,7 @@ for the `promesa.core/let` → `clojure.core/let` `:lint-as` hint this
 requires, the same fix `kotoba-lang/dtn`'s own `.clj-kondo/config.edn`
 applies for its structurally identical `p/let`-based demo).
 
-`nbb --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljs`
+`nbb --classpath "src:test:../bytes/src" test/kotoba/turn/listener_demo.cljk`
 — see "The real relay listener" above for what its 3 scenarios prove;
 `RESULT: 3/3 scenarios passed`, exit 0.
 
