@@ -1,5 +1,5 @@
 (ns kotoba.turn.demux-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [kotoba.bytes :as b]
             [kotoba.turn.channeldata :as cd]
             [kotoba.turn.demux :as demux]

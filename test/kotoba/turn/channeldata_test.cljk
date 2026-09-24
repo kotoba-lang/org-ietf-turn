@@ -1,5 +1,5 @@
 (ns kotoba.turn.channeldata-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [kotoba.turn.channeldata :as cd]))
 
 (deftest round-trips-a-realistic-non-4-aligned-payload
