@@ -1,5 +1,5 @@
 (ns kotoba.turn.allocation-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [kotoba.turn.allocation :as alloc]))
 
 (def five-tuple {:client-ip [10 0 0 1] :client-port 5000
